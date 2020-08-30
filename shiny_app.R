@@ -4,58 +4,66 @@ library(leaflet)
 # Get working data set from source script
 source("data_wrangling.R")
 
-# user interface
-# ui <- 
+# User interface
+ui <- fluidPage(
+  fluidRow(
+    column(6,
+           leafletOutput("pedmap"),
+           div(style = "position:relative; top:20px",
+               actionButton("reload_map", label = "Reset map"))
+    ),
+    column(6,
+           plotOutput("ped_counts"),
+           div(style = "position:relative; left:35px;",
+               selectInput("sensor_filter", label = "Select a sensor",
+                           choices = unique(peds$Sensor_Name), selected = unique(peds$Sensor_Name)[1],
+                           width = "95%")
+           )
+    )
+  ),
+  fluidRow(
+    textOutput("text")
+  )
+)
 
-lng_center <- 144.961360
-lat_center <- -37.810316
-zoom_init <- 14.45
-fill_color <- "black"
-scale_factor = 15
-
-############################################ LEGEND #####################################
-# Create custom legend labels functions
-# Based on https://stackoverflow.com/questions/52812238/custom-legend-with-r-leaflet-circles-and-squares-in-same-plot-legends
-make_labels <- function(sizes, labels) {
-  paste0("<div style='display: inline-block;height: ", 
-         # sizes, "px;margin-top: 4px;line-height: ", 
-         sizes, "px;'>",
-         labels, "</div>")
-}
-
-make_shapes <- function(color, sizes, borders) {
-  # shapes <- gsub("circle", "50%", shapes)
-  # shapes <- gsub("square", "0%", shapes)
-  paste0(color, "; width:", sizes, "px; height:", sizes, 
-         "px; border:3px solid ", borders, 
-         "; border-radius:50%")
-}
-
-sizes <- unique(sensors$size_class)*3
-label_levels <- levels(sensors$size_label)
-
-labels <- make_labels(sizes, label_levels)
-colors_shapes <- make_shapes(fill_color, sizes, fill_color)
-
-##########################################################################################
-
-
-### Map
-leaflet(data = sensors) %>% 
-  setView(lng = lng_center, lat = lat_center, zoom = zoom_init) %>%
-  addProviderTiles("CartoDB.Voyager") %>%
-  addCircles(lng = ~longitude, lat = ~latitude, radius = ~ped_avg/scale_factor,
-             stroke = FALSE, fillColor = fill_color, fillOpacity = 0.5, 
-             label = ~paste("Sensor:", sensor_name),
-             highlightOptions = highlightOptions(fillColor = "green", bringToFront = FALSE))# %>% 
-  # addLegend("bottomright", colors = colors_shapes, labels = labels)
-
-
+# Server side
+server <- function(input, output, session){
   
-### Line small multiples
-filtered_sensor = "Alfred Place"
-peds %>% filter(Sensor_Name == filtered_sensor) %>% 
-  ggplot(aes(x = Time, y = avg_count)) +
-  geom_line() +
-  labs(title = "Hourly counts per day of the week", y = "Average") +
-  facet_wrap(~Day)
+  # Initial map setup
+  lng_center <- 144.961360
+  lat_center <- -37.810316
+  zoom_init <- 13.75
+  fill_color <- "black"
+  scale_factor = 150
+  
+  # Render map
+  output$pedmap <- renderLeaflet({
+    input$reload_map
+    leaflet(data = sensors, options = leafletOptions(zoomSnap = 0.25, zoomDelta = 1)) %>%
+      fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude)) %>%
+      addProviderTiles("CartoDB.Voyager") %>% 
+      addCircleMarkers(lng = ~longitude, lat = ~latitude, radius = ~ped_avg/scale_factor,
+                       stroke = FALSE, fillColor = fill_color, fillOpacity = 0.5,
+                       label = ~paste("Sensor:", sensor_name),
+                       layerId = ~sensor_name)
+    
+  })
+  
+  # Render line plots
+  output$ped_counts <- renderPlot({
+    peds %>% filter(Sensor_Name == input$sensor_filter) %>% 
+      ggplot(aes(x = Time, y = avg_count)) +
+      geom_line() +
+      labs(title = "Hourly counts per day of the week", y = "Average") +
+      facet_wrap(~Day)
+  })
+  
+  # Get selected sensor from map
+  observe({
+    map_input <- input$pedmap_marker_click
+    updateSelectInput(session, inputId = "sensor_filter", selected = map_input$id)
+  })
+}
+
+# Run App
+shinyApp(ui, server)
