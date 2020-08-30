@@ -45,5 +45,11 @@ sensors <- inner_join(sensors, peds_avg, by = c("sensor_name" = "Sensor_Name"))
 sensors <- sensors %>% mutate(size_class = cut(.$ped_avg, breaks = 6, labels = FALSE),
                               size_label = cut(.$ped_avg, breaks = 6))
 
+# Summarise peds data as needed
+peds <- peds %>% group_by(Sensor_Name, Time,
+                        Day = forcats::as_factor(Day) %>% 
+                          fct_relevel(c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))) %>% 
+  summarise(avg_count = mean(Hourly_Counts))
+
 # Remove no longer needed objects
 rm(list = setdiff(ls(), c("sensors", "peds")))

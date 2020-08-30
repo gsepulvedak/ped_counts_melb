@@ -53,3 +53,9 @@ leaflet(data = sensors) %>%
 
   
 ### Line small multiples
+filtered_sensor = "Alfred Place"
+peds %>% filter(Sensor_Name == filtered_sensor) %>% 
+  ggplot(aes(x = Time, y = avg_count)) +
+  geom_line() +
+  labs(title = "Hourly counts per day of the week", y = "Average") +
+  facet_wrap(~Day)
