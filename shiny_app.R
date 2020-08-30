@@ -36,6 +36,26 @@ server <- function(input, output, session){
   fill_color <- "black"
   scale_factor = 150
   
+  # Create custom legend functions
+  # Based on https://rb.gy/tr1xcr (stack overflow)
+  make_labels <- function(sizes, labels) {
+    paste0("<div style='display: inline-block;height: ",
+           sizes, "px;'>",
+           labels, "</div>")
+  }
+  
+  make_shapes <- function(color, sizes, borders) {
+    paste0(color, "; width:", sizes, "px; height:", sizes, 
+           "px; border:3px solid ", borders, 
+           "; border-radius:50%")
+  }
+  
+  sizes <- sort(unique(sensors$high_int)/80)
+  label_levels <- unique(paste0("(", sort(sensors$low_int), ",", sort(sensors$high_int), ")"))
+  
+  labels <- make_labels(sizes, label_levels)
+  shapes <- make_shapes(fill_color, sizes, fill_color)
+  
   # Render map
   output$pedmap <- renderLeaflet({
     input$reload_map
@@ -45,7 +65,8 @@ server <- function(input, output, session){
       addCircleMarkers(lng = ~longitude, lat = ~latitude, radius = ~ped_avg/scale_factor,
                        stroke = FALSE, fillColor = fill_color, fillOpacity = 0.5,
                        label = ~paste("Sensor:", sensor_name),
-                       layerId = ~sensor_name)
+                       layerId = ~sensor_name) %>% 
+      addLegend("topleft", colors = shapes, labels = labels)
     
   })
   
