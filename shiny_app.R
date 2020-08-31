@@ -34,27 +34,28 @@ server <- function(input, output, session){
   lat_center <- -37.810316
   zoom_init <- 13.75
   fill_color <- "black"
-  scale_factor = 150
+  scale_factor = 100
   
   # Create custom legend functions
   # Based on https://rb.gy/tr1xcr (stack overflow)
-  make_labels <- function(sizes, labels) {
-    paste0("<div style='display: inline-block;height: ",
-           sizes, "px;'>",
-           labels, "</div>")
+  make_label <- function(sizes, labels) {
+    paste0("<p style='display: inline-block; height: ", sizes, 
+           "px; position:absolute; left:40px; margin-top:6px'>",
+           labels, "</p>")
   }
   
-  make_shapes <- function(color, sizes, borders) {
+  make_symbol <- function(color, sizes, borders) {
+    l_margin <- max(sizes)/2 - sizes/2
     paste0(color, "; width:", sizes, "px; height:", sizes, 
-           "px; border:3px solid ", borders, 
-           "; border-radius:50%")
+           "px; border:0px solid ", color, 
+           "; border-radius:50%; position:relative; left:", l_margin, "px; margin-top:", l_margin+1.5, "px;")
   }
   
-  sizes <- sort(unique(sensors$high_int)/80)
-  label_levels <- unique(paste0("(", sort(sensors$low_int), ",", sort(sensors$high_int), ")"))
+  sizes <- sort(unique(sensors$low_bound)/(scale_factor*0.5))
+  labels <- sort(unique(sensors$low_bound))
   
-  labels <- make_labels(sizes, label_levels)
-  shapes <- make_shapes(fill_color, sizes, fill_color)
+  legend_labels <- make_label(sizes, labels)
+  legend_symbols <- make_symbol(fill_color, sizes, fill_color)
   
   # Render map
   output$pedmap <- renderLeaflet({
@@ -66,7 +67,8 @@ server <- function(input, output, session){
                        stroke = FALSE, fillColor = fill_color, fillOpacity = 0.5,
                        label = ~paste("Sensor:", sensor_name),
                        layerId = ~sensor_name) %>% 
-      addLegend("topleft", colors = shapes, labels = labels)
+      addLegend("topleft", colors = legend_symbols, labels = legend_labels,
+                title = "2019 average")
     
   })
   

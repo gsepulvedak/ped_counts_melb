@@ -42,8 +42,8 @@ peds_avg <- peds %>% group_by(Sensor_Name) %>% summarise(ped_avg = mean(Hourly_C
 sensors <- inner_join(sensors, peds_avg, by = c("sensor_name" = "Sensor_Name"))
 
 # Add cut levels for map legend (ends of intervals as separated columns)
-sensors <- sensors %>% mutate(avg_interval = gsub("]|\\(", "", cut(.$ped_avg, breaks = 6))) %>% 
-  separate(avg_interval, into = c("low_int", "high_int"), sep = ",", convert = TRUE)
+sensors <- sensors %>% mutate(avg_interval = gsub("]|\\(", "", cut(.$ped_avg, breaks = c(100, 300, 600, 900, 1500, 2000)))) %>%
+  separate(avg_interval, into = c("low_bound", "high_bound"), sep = ",", convert = TRUE)
 
 # Summarise peds data as needed
 peds <- peds %>% group_by(Sensor_Name, Time,
