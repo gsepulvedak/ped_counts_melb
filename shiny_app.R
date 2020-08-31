@@ -7,40 +7,39 @@ source("data_wrangling.R")
 # User interface
 ui <- fluidPage(
   fluidRow(
+    h2("2019 pedestrian traffic in Melbourne CBD", align = "center"),
     column(6,
-           leafletOutput("pedmap"),
-           div(style = "position:relative; top:20px",
+           p("Sensor location map. Circle sizes represent year average."),
+           div(style = "border:1px solid; color:grey", 
+               leafletOutput("pedmap", height = 500)),
+           div(style = "position:relative; top:30px",
                actionButton("reload_map", label = "Reset map"))
     ),
     column(6,
-           plotOutput("ped_counts"),
-           div(style = "position:relative; left:35px;",
-               selectInput("sensor_filter", label = "Select a sensor",
+           p("Pedestrian hourly average per day of the week.", style = "position:relative; left:45px"),
+           div(style = "border:1px solid; color:grey",
+               plotOutput("ped_counts", height = 500)),
+           div(style = "position:relative; left:30px; top:10px",
+               selectInput("sensor_filter", label = "Choose sensor",
                            choices = unique(peds$Sensor_Name), selected = unique(peds$Sensor_Name)[1],
                            width = "95%")
            )
     )
-  ),
-  fluidRow(
-    textOutput("text")
   )
 )
 
 # Server side
 server <- function(input, output, session){
   
-  # Initial map setup
-  lng_center <- 144.961360
-  lat_center <- -37.810316
-  zoom_init <- 13.75
+  # Format variables
   fill_color <- "black"
   scale_factor = 100
   
-  # Create custom legend functions
+  # Custom legend functions (HTML)
   # Based on https://rb.gy/tr1xcr (stack overflow)
   make_label <- function(sizes, labels) {
     paste0("<p style='display: inline-block; height: ", sizes, 
-           "px; position:absolute; left:40px; margin-top:6px'>",
+           "px; position:absolute; left:40px; margin-top:6px; font-size:13px'>",
            labels, "</p>")
   }
   
@@ -51,9 +50,11 @@ server <- function(input, output, session){
            "; border-radius:50%; position:relative; left:", l_margin, "px; margin-top:", l_margin+1.5, "px;")
   }
   
+  # Get sizes and labels from dataset
   sizes <- sort(unique(sensors$low_bound)/(scale_factor*0.5))
   labels <- sort(unique(sensors$low_bound))
   
+  # Create HTML legend elements
   legend_labels <- make_label(sizes, labels)
   legend_symbols <- make_symbol(fill_color, sizes, fill_color)
   
@@ -68,7 +69,7 @@ server <- function(input, output, session){
                        label = ~paste("Sensor:", sensor_name),
                        layerId = ~sensor_name) %>% 
       addLegend("topleft", colors = legend_symbols, labels = legend_labels,
-                title = "2019 average")
+                title = "Year avg")
     
   })
   
@@ -77,7 +78,7 @@ server <- function(input, output, session){
     peds %>% filter(Sensor_Name == input$sensor_filter) %>% 
       ggplot(aes(x = Time, y = avg_count)) +
       geom_line() +
-      labs(title = "Hourly counts per day of the week", y = "Average") +
+      labs(y = "Average") +
       facet_wrap(~Day)
   })
   
