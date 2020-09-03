@@ -9,17 +9,19 @@ ui <- fluidPage(
   fluidRow(
     h2("2019 pedestrian traffic in Melbourne CBD", align = "center"),
     column(6,
-           p("Sensor location map. Circle sizes represent year average."),
+           p("Sensor location map.", br("Circle size represents pedestrian year average.")),
            div(style = "border:1px solid; color:grey", 
                leafletOutput("pedmap", height = 500)),
            div(style = "position:relative; top:30px",
-               actionButton("reload_map", label = "Reset map"))
+               actionButton("reload_map", label = "Reset map"),
+               actionButton("center_selection", label = "Fly to selected"))
     ),
     column(6,
-           p("Pedestrian hourly average per day of the week.", style = "position:relative; left:45px"),
+           p("Pedestrian hourly average per day of the week.", br("Sensor: ", strong(textOutput("sensor", container = span))), 
+             style = "position:relative; left:45px"),
            div(style = "border:1px solid; color:grey",
                plotOutput("ped_counts", height = 500)),
-           div(style = "position:relative; left:30px; top:10px",
+           div(style = "position:relative; left:25px; top:10px",
                selectInput("sensor_filter", label = "Choose sensor",
                            choices = unique(peds$Sensor_Name), selected = unique(peds$Sensor_Name)[1],
                            width = "95%")
@@ -73,6 +75,28 @@ server <- function(input, output, session){
     
   })
   
+  # Filter selected sensor data
+  sel_sensor <- reactive({
+    sensors %>% filter(sensor_name == input$sensor_filter)
+  })
+    
+  # Render selected sensor
+  observe({
+    input$reload_map
+    leafletProxy("pedmap", data = sel_sensor()) %>%
+      removeMarker(layerId = "selection") %>%
+      addCircleMarkers(lng = ~longitude, lat = ~latitude, radius = ~ped_avg/scale_factor,
+                       stroke = FALSE, fillColor = "red", fillOpacity = 0.8,
+                       label = ~paste("Sensor:", sensor_name),
+                       layerId = "selection")
+  })
+  
+  # Fly to selected sensor
+  observeEvent(input$center_selection, {
+    leafletProxy("pedmap") %>% 
+      flyTo(lng = sel_sensor()$longitude, lat = sel_sensor()$latitude, zoom = 17)
+  })
+  
   # Render line plots
   output$ped_counts <- renderPlot({
     peds %>% filter(Sensor_Name == input$sensor_filter) %>% 
@@ -87,6 +111,9 @@ server <- function(input, output, session){
     map_input <- input$pedmap_marker_click
     updateSelectInput(session, inputId = "sensor_filter", selected = map_input$id)
   })
+  
+  # Update line plot title
+  output$sensor <- renderText({input$sensor_filter})
 }
 
 # Run App
